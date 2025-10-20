@@ -1,5 +1,5 @@
 ﻿# Claude Code 自动部署脚本
-# 作者: Grok
+# 作者: hotyi
 # 日期: 2025-10-19
 # 运行: .\deploy_claude_code.ps1 (管理员模式)
 
@@ -563,7 +563,7 @@ if ($installChoice -eq "y") {
     Write-Host "配置系统参数..." -ForegroundColor Cyan
 
     # 询问密钥和端口
-    $apiKey = Read-Host "请输入 Claude API 密钥 (e.g., hotyi123)"
+    $apiKey = Read-Host "请输入 Claude API 密钥 (e.g., 1234)"
 
     # AIClient 端口输入和检查循环
     do {
@@ -607,7 +607,7 @@ if ($installChoice -eq "y") {
         }
     } while ($portCheck)
 
-    $qwenApiKey = Read-Host "请输入 Qwen API 密钥 (e.g., sk-f565b65f141646609ab0cf23dcf3fa5c)"
+    $qwenApiKey = Read-Host "请输入 Qwen API 密钥 (e.g., sk-f566b65f141646609ab0cf23dcf3fa5b)"
 
     # 获取用户文件夹（兼容 Windows 10/11）
     $userFolder = $env:USERPROFILE
