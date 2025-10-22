@@ -242,16 +242,20 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     $missingDependencies += "Winget"
 }
 # 检查 Node.js 版本
-$nodeRequired = "v22.11.0"
+$nodeMinVersion = 18
 $nodeInstalled = $false
 if (Get-Command node -ErrorAction SilentlyContinue) {
     try {
         $nodeVersion = node --version 2>$null
-        if ($nodeVersion -eq $nodeRequired) {
+        # 提取版本号（去掉 'v' 前缀）
+        $versionNumber = $nodeVersion -replace '^v', ''
+        $majorVersion = [int]($versionNumber -split '\.')[0]
+
+        if ($majorVersion -ge $nodeMinVersion) {
             $nodeInstalled = $true
-            Write-Host "✓ Node.js $nodeVersion 已安装" -ForegroundColor Green
+            Write-Host "✓ Node.js $nodeVersion 已安装 (要求: v$nodeMinVersion+)" -ForegroundColor Green
         } else {
-            Write-Host "⚠ Node.js 版本不匹配: 当前 $nodeVersion, 需要 $nodeRequired" -ForegroundColor Yellow
+            Write-Host "⚠ Node.js 版本过低: 当前 $nodeVersion, 需要 v$nodeMinVersion 或更新版本" -ForegroundColor Yellow
         }
     } catch {
         Write-Host "⚠ Node.js 版本检查失败" -ForegroundColor Yellow
@@ -273,13 +277,12 @@ if ($missingDependencies.Count -gt 0) {
             Exit
         }
         if ($missingDependencies -contains "Node.js") {
-            Write-Host "安装 Node.js v22.11.0..."
-            # 先尝试卸载现有版本
-            winget uninstall OpenJS.NodeJS --silent 2>$null
-            # 安装指定版本的 Node.js
-            winget install OpenJS.NodeJS --version 22.11.0 --accept-package-agreements --accept-source-agreements --scope user
+            Write-Host "安装 Node.js (最新 LTS 版本)..."
+            # 安装最新 LTS 版本的 Node.js
+            winget install OpenJS.NodeJS --accept-package-agreements --accept-source-agreements --scope user
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "Winget 安装失败，尝试从官网下载..." -ForegroundColor Yellow
+                # 使用最新 LTS 版本
                 $nodeUrl = "https://nodejs.org/dist/v22.11.0/node-v22.11.0-x64.msi"
                 $nodeInstaller = "$env:TEMP\node-v22.11.0-x64.msi"
                 Write-Host "下载 Node.js v22.11.0..."
