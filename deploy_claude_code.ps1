@@ -218,17 +218,15 @@ while ($true) {
                         Remove-Item -Path "$userFolder\.claude-code-router" -Recurse -Force -ErrorAction SilentlyContinue
                     }
 
-                    # Kiro 相关配置（如果用户选择了完全清理）
+                    # 额外清理（如果用户选择了完全清理）
                     if ($claudeCodeConfirm -eq "y") {
-                        if (Test-Path "$userFolder\.aws\sso\cache\kiro-auth-token.json") {
-                            Write-Host "删除 Kiro 认证 token 文件" -ForegroundColor Yellow
-                            Remove-Item -Path "$userFolder\.aws\sso\cache\kiro-auth-token.json" -Force -ErrorAction SilentlyContinue
-                        }
-
                         # 清理 npm 缓存中的相关包
                         Write-Host "清理 npm 缓存..." -ForegroundColor Yellow
                         npm cache clean --force 2>$null
                     }
+
+                    # 注意：保留 Kiro 认证配置 (~/.aws/sso/cache/kiro-auth-token.json)
+                    # 这样用户无需重新登录 Kiro IDE
 
                     # AIClient 日志文件清理
                     $possibleLogPaths = @(
@@ -253,9 +251,10 @@ while ($true) {
 
                     Write-Host "清理完成！" -ForegroundColor Green
                     if ($claudeCodeConfirm -eq "y") {
-                        Write-Host "注意：已完全清理 Claude Code 和相关配置。VS Code 和 Kiro IDE 已保留。" -ForegroundColor Cyan
+                        Write-Host "注意：已完全清理 Claude Code 和相关配置。" -ForegroundColor Cyan
+                        Write-Host "保留项：VS Code、Kiro IDE 和 Kiro 登录凭证，可继续使用。" -ForegroundColor Cyan
                     } else {
-                        Write-Host "注意：Claude Code、VS Code 和 Kiro IDE 已保留，可继续使用。" -ForegroundColor Cyan
+                        Write-Host "注意：Claude Code、VS Code、Kiro IDE 和 Kiro 登录凭证已保留，可继续使用。" -ForegroundColor Cyan
                     }
                     Write-Host "如需重新安装，请重新运行此脚本的安装模式。" -ForegroundColor Yellow
                 } catch {
