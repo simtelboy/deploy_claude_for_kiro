@@ -171,6 +171,11 @@ while ($true) {
             Write-Host "步骤: 清理项目配置和文件..." -ForegroundColor Red
             $confirm = Read-Host "警告: 这将清理 hotyi-dev 文件夹和相关配置，但保留 Claude Code、VS Code 和 Kiro IDE，是否继续? (y/n)"
             if ($confirm -eq "y") {
+                # 询问是否也要卸载 Claude Code
+                Write-Host ""
+                Write-Host "额外清理选项:" -ForegroundColor Cyan
+                $claudeCodeConfirm = Read-Host "是否也要卸载 Claude Code? 这将完全移除 Claude Code CLI 工具 (y/n)"
+
                 Write-Host "停止运行中的进程..."
                 taskkill /F /IM node.exe /FI "WINDOWTITLE eq Router*" /T 2>$null
                 taskkill /F /IM node.exe /FI "WINDOWTITLE eq MCP*" /T 2>$null
@@ -184,21 +189,58 @@ while ($true) {
                         npm uninstall -g @musistudio/claude-code-router 2>$null
                     }
 
+                    # 卸载 Claude Code（如果用户确认）
+                    if ($claudeCodeConfirm -eq "y") {
+                        if (Get-Command claude -ErrorAction SilentlyContinue) {
+                            Write-Host "卸载 Claude Code..." -ForegroundColor Yellow
+                            npm uninstall -g @anthropic-ai/claude-code 2>$null
+                        }
+                    }
+
                     # 删除 hotyi-dev 文件夹（包含 AIClient-2-API、Claude-MCP-Router 等）
                     if ($hotyiDevPath -and (Test-Path $hotyiDevPath)) {
                         Write-Host "删除 hotyi-dev 文件夹: $hotyiDevPath" -ForegroundColor Yellow
                         Remove-Item -Path "$hotyiDevPath" -Recurse -Force -ErrorAction SilentlyContinue
                     }
 
-                    # 删除配置文件夹
+                    # 完整清理配置文件夹
                     $userFolder = $env:USERPROFILE
+
+                    # Claude 相关配置
                     if (Test-Path "$userFolder\.claude") {
                         Write-Host "删除 Claude 配置文件夹" -ForegroundColor Yellow
                         Remove-Item -Path "$userFolder\.claude" -Recurse -Force -ErrorAction SilentlyContinue
                     }
+
+                    # Claude Code Router 配置
                     if (Test-Path "$userFolder\.claude-code-router") {
                         Write-Host "删除 Claude Code Router 配置文件夹" -ForegroundColor Yellow
                         Remove-Item -Path "$userFolder\.claude-code-router" -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+
+                    # Kiro 相关配置（如果用户选择了完全清理）
+                    if ($claudeCodeConfirm -eq "y") {
+                        if (Test-Path "$userFolder\.aws\sso\cache\kiro-auth-token.json") {
+                            Write-Host "删除 Kiro 认证 token 文件" -ForegroundColor Yellow
+                            Remove-Item -Path "$userFolder\.aws\sso\cache\kiro-auth-token.json" -Force -ErrorAction SilentlyContinue
+                        }
+
+                        # 清理 npm 缓存中的相关包
+                        Write-Host "清理 npm 缓存..." -ForegroundColor Yellow
+                        npm cache clean --force 2>$null
+                    }
+
+                    # AIClient 日志文件清理
+                    $possibleLogPaths = @(
+                        "$hotyiDevPath\AIClient-2-API\claude_logs*",
+                        "$env:TEMP\claude_logs*",
+                        "$userFolder\claude_logs*"
+                    )
+                    foreach ($logPath in $possibleLogPaths) {
+                        if (Test-Path $logPath) {
+                            Write-Host "删除日志文件: $logPath" -ForegroundColor Yellow
+                            Remove-Item -Path $logPath -Recurse -Force -ErrorAction SilentlyContinue
+                        }
                     }
 
                     # 移除环境变量
@@ -206,8 +248,16 @@ while ($true) {
                     [System.Environment]::SetEnvironmentVariable("ANTHROPIC_BASE_URL", $null, "User")
                     [System.Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", $null, "User")
 
+                    # 刷新环境变量
+                    Refresh-Environment
+
                     Write-Host "清理完成！" -ForegroundColor Green
-                    Write-Host "注意：Claude Code、VS Code 和 Kiro IDE 已保留，可继续使用。" -ForegroundColor Cyan
+                    if ($claudeCodeConfirm -eq "y") {
+                        Write-Host "注意：已完全清理 Claude Code 和相关配置。VS Code 和 Kiro IDE 已保留。" -ForegroundColor Cyan
+                    } else {
+                        Write-Host "注意：Claude Code、VS Code 和 Kiro IDE 已保留，可继续使用。" -ForegroundColor Cyan
+                    }
+                    Write-Host "如需重新安装，请重新运行此脚本的安装模式。" -ForegroundColor Yellow
                 } catch {
                     Write-Host "清理过程中出现错误: $($_.Exception.Message)" -ForegroundColor Red
                 }
