@@ -74,8 +74,9 @@ while ($true) {
     Write-Host "4. Router Qwen 模式"
     Write-Host "5. Kiro 续杯"
     Write-Host "6. 清理项目配置"
-    Write-Host "7. 退出"
-    $mainChoice = Read-Host "请输入选项 (1-7, 默认 3)"
+    Write-Host "7. 管理简短指令"
+    Write-Host "8. 退出"
+    $mainChoice = Read-Host "请输入选项 (1-8, 默认 3)"
 
     if (-not $mainChoice) { $mainChoice = "3" }
 
@@ -197,6 +198,28 @@ while ($true) {
                         }
                     }
 
+                    # 清理 PowerShell Profile 中的简短指令引用
+                    Write-Host "清理 PowerShell Profile 中的简短指令..." -ForegroundColor Yellow
+                    $profilePath = $PROFILE
+                    if (Test-Path $profilePath) {
+                        $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+                        if ($profileContent) {
+                            # 移除所有可能的 aliases.ps1 引用（支持不同盘符）
+                            $profileContent = $profileContent -replace '# Claude Code 部署工具简短指令\s*\n', ''
+                            $profileContent = $profileContent -replace '\.\s*"[A-Z]:\\hotyi-dev\\Scripts\\aliases\.ps1"\s*\n?', ''
+                            $profileContent = $profileContent -replace '\.\s*"[^"]*\\aliases\.ps1"\s*\n?', ''
+                            # 清理多余的空行
+                            $profileContent = $profileContent -replace '\n{3,}', "`n`n"
+                            $profileContent = $profileContent.Trim()
+                            if ($profileContent) {
+                                $profileContent | Set-Content $profilePath -Encoding UTF8
+                            } else {
+                                Remove-Item $profilePath -Force -ErrorAction SilentlyContinue
+                            }
+                            Write-Host "- 已从 PowerShell Profile 移除简短指令引用" -ForegroundColor Green
+                        }
+                    }
+
                     # 删除 hotyi-dev 文件夹（包含 AIClient-2-API、Claude-MCP-Router 等）
                     if ($hotyiDevPath -and (Test-Path $hotyiDevPath)) {
                         Write-Host "删除 hotyi-dev 文件夹: $hotyiDevPath" -ForegroundColor Yellow
@@ -267,6 +290,205 @@ while ($true) {
             }
         }
         "7" {
+            # 管理简短指令
+            Write-Host ""
+            Write-Host "===== 简短指令管理 =====" -ForegroundColor Cyan
+            Write-Host "简短指令可以让你在 PowerShell 中快速执行常用命令"
+            Write-Host ""
+            
+            # 检查当前已配置的简短指令
+            $aliasScriptPath = "$hotyiDevPath\Scripts\aliases.ps1"
+            $profilePath = $PROFILE
+            
+            # 显示当前已有的简短指令
+            if (Test-Path $aliasScriptPath) {
+                Write-Host "当前已配置的简短指令：" -ForegroundColor Green
+                Get-Content $aliasScriptPath | Where-Object { $_ -match "^function\s+(\w+)" } | ForEach-Object {
+                    if ($_ -match "function\s+(\w+)\s*\{.*`"(.+)`"") {
+                        Write-Host "  $($Matches[1]) -> $($Matches[2])" -ForegroundColor White
+                    } elseif ($_ -match "function\s+(\w+)") {
+                        Write-Host "  $($Matches[1])" -ForegroundColor White
+                    }
+                }
+            } else {
+                Write-Host "尚未配置任何简短指令" -ForegroundColor Yellow
+            }
+            
+            Write-Host ""
+            Write-Host "请选择操作：" -ForegroundColor Cyan
+            Write-Host "1. 添加简短指令"
+            Write-Host "2. 删除简短指令"
+            Write-Host "3. 查看所有简短指令"
+            Write-Host "4. 重置为默认简短指令"
+            Write-Host "5. 返回主菜单"
+            $aliasChoice = Read-Host "请输入选项 (1-5)"
+            
+            switch ($aliasChoice) {
+                "1" {
+                    # 添加简短指令
+                    Write-Host ""
+                    Write-Host "添加新的简短指令" -ForegroundColor Cyan
+                    $aliasName = Read-Host "请输入简短指令名称 (如: goa)"
+                    if (-not $aliasName) {
+                        Write-Host "指令名称不能为空" -ForegroundColor Red
+                        continue
+                    }
+                    
+                    Write-Host "请选择指令类型：" -ForegroundColor Cyan
+                    Write-Host "1. 执行脚本文件"
+                    Write-Host "2. 执行自定义命令"
+                    $cmdType = Read-Host "请输入选项 (1-2)"
+                    
+                    if ($cmdType -eq "1") {
+                        Write-Host "可用的脚本文件：" -ForegroundColor Yellow
+                        Get-ChildItem "$hotyiDevPath\Scripts\*.ps1" -ErrorAction SilentlyContinue | ForEach-Object {
+                            Write-Host "  - $($_.Name)" -ForegroundColor White
+                        }
+                        $scriptName = Read-Host "请输入脚本文件名 (如: switch_to_aiclient.ps1)"
+                        $aliasCommand = "& `"$hotyiDevPath\Scripts\$scriptName`""
+                    } else {
+                        $aliasCommand = Read-Host "请输入要执行的命令"
+                    }
+                    
+                    # 确保 Scripts 目录存在
+                    if (-not (Test-Path "$hotyiDevPath\Scripts")) {
+                        New-Item -Path "$hotyiDevPath\Scripts" -ItemType Directory -Force | Out-Null
+                    }
+                    
+                    # 创建或更新 aliases.ps1
+                    $newFunction = "function $aliasName { $aliasCommand }"
+                    
+                    if (Test-Path $aliasScriptPath) {
+                        # 检查是否已存在同名指令
+                        $existingContent = Get-Content $aliasScriptPath -Raw
+                        if ($existingContent -match "function\s+$aliasName\s*\{") {
+                            Write-Host "指令 '$aliasName' 已存在，是否覆盖? (y/n)" -ForegroundColor Yellow
+                            $overwrite = Read-Host
+                            if ($overwrite -eq "y") {
+                                $existingContent = $existingContent -replace "function\s+$aliasName\s*\{[^}]+\}\s*", ""
+                                $existingContent + "`n$newFunction" | Set-Content $aliasScriptPath -Encoding UTF8
+                                Write-Host "指令 '$aliasName' 已更新" -ForegroundColor Green
+                            }
+                        } else {
+                            Add-Content $aliasScriptPath "`n$newFunction" -Encoding UTF8
+                            Write-Host "指令 '$aliasName' 已添加" -ForegroundColor Green
+                        }
+                    } else {
+                        # 创建新的 aliases.ps1
+                        $aliasHeader = "# Claude Code 部署工具 - 简短指令配置`n# 自动生成，请勿手动编辑`n"
+                        "$aliasHeader$newFunction" | Set-Content $aliasScriptPath -Encoding UTF8
+                        Write-Host "指令 '$aliasName' 已添加" -ForegroundColor Green
+                    }
+                    
+                    # 确保 PowerShell Profile 引用了 aliases.ps1
+                    if (Test-Path $profilePath) {
+                        $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+                        if ($profileContent -notmatch [regex]::Escape($aliasScriptPath)) {
+                            Add-Content $profilePath "`n. `"$aliasScriptPath`"" -Encoding UTF8
+                            Write-Host "已将简短指令配置添加到 PowerShell Profile" -ForegroundColor Green
+                        }
+                    } else {
+                        # 创建 Profile
+                        New-Item -Path (Split-Path $profilePath -Parent) -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+                        ". `"$aliasScriptPath`"" | Set-Content $profilePath -Encoding UTF8
+                        Write-Host "已创建 PowerShell Profile 并添加简短指令配置" -ForegroundColor Green
+                    }
+                    
+                    Write-Host "提示：重新打开 PowerShell 后生效，或执行: . `"$aliasScriptPath`"" -ForegroundColor Cyan
+                }
+                "2" {
+                    # 删除简短指令
+                    if (-not (Test-Path $aliasScriptPath)) {
+                        Write-Host "没有配置任何简短指令" -ForegroundColor Yellow
+                        continue
+                    }
+                    
+                    Write-Host ""
+                    Write-Host "当前已配置的简短指令：" -ForegroundColor Cyan
+                    $aliases = @()
+                    Get-Content $aliasScriptPath | Where-Object { $_ -match "^function\s+(\w+)" } | ForEach-Object {
+                        if ($_ -match "function\s+(\w+)") {
+                            $aliases += $Matches[1]
+                            Write-Host "  - $($Matches[1])" -ForegroundColor White
+                        }
+                    }
+                    
+                    $delAlias = Read-Host "请输入要删除的指令名称"
+                    if ($aliases -contains $delAlias) {
+                        $content = Get-Content $aliasScriptPath -Raw
+                        $content = $content -replace "function\s+$delAlias\s*\{[^}]+\}\s*`n?", ""
+                        $content | Set-Content $aliasScriptPath -Encoding UTF8
+                        Write-Host "指令 '$delAlias' 已删除" -ForegroundColor Green
+                        Write-Host "提示：重新打开 PowerShell 后生效" -ForegroundColor Cyan
+                    } else {
+                        Write-Host "指令 '$delAlias' 不存在" -ForegroundColor Red
+                    }
+                }
+                "3" {
+                    # 查看所有简短指令
+                    if (Test-Path $aliasScriptPath) {
+                        Write-Host ""
+                        Write-Host "===== aliases.ps1 内容 =====" -ForegroundColor Cyan
+                        Get-Content $aliasScriptPath
+                        Write-Host "=============================" -ForegroundColor Cyan
+                    } else {
+                        Write-Host "没有配置任何简短指令" -ForegroundColor Yellow
+                    }
+                }
+                "4" {
+                    # 重置为默认简短指令
+                    Write-Host "将重置为以下默认简短指令：" -ForegroundColor Yellow
+                    Write-Host "  goa  -> 切换到 AIClient 模式"
+                    Write-Host "  gok  -> 切换到 Router Kiro 链式模式"
+                    Write-Host "  goq  -> 切换到 Router Qwen 模式"
+                    Write-Host "  aic  -> 启动 AIClient-2-API 服务"
+                    $resetConfirm = Read-Host "确认重置? (y/n)"
+                    
+                    if ($resetConfirm -eq "y") {
+                        # 确保 Scripts 目录存在
+                        if (-not (Test-Path "$hotyiDevPath\Scripts")) {
+                            New-Item -Path "$hotyiDevPath\Scripts" -ItemType Directory -Force | Out-Null
+                        }
+                        
+                        $defaultAliases = @"
+# Claude Code 部署工具 - 简短指令配置
+# 自动生成
+
+function goa { & "$hotyiDevPath\Scripts\switch_to_aiclient.ps1" }
+function gok { & "$hotyiDevPath\Scripts\switch_to_router_kiro.ps1" }
+function goq { & "$hotyiDevPath\Scripts\switch_to_router_qwen.ps1" }
+function aic { Push-Location "$hotyiDevPath\AIClient-2-API"; node src/services/api-server.js; Pop-Location }
+"@
+                        $defaultAliases | Set-Content $aliasScriptPath -Encoding UTF8
+                        Write-Host "简短指令已重置为默认值" -ForegroundColor Green
+                        
+                        # 确保 PowerShell Profile 引用了 aliases.ps1
+                        if (Test-Path $profilePath) {
+                            $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+                            if ($profileContent -notmatch [regex]::Escape($aliasScriptPath)) {
+                                Add-Content $profilePath "`n. `"$aliasScriptPath`"" -Encoding UTF8
+                                Write-Host "已将简短指令配置添加到 PowerShell Profile" -ForegroundColor Green
+                            }
+                        } else {
+                            New-Item -Path (Split-Path $profilePath -Parent) -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+                            ". `"$aliasScriptPath`"" | Set-Content $profilePath -Encoding UTF8
+                            Write-Host "已创建 PowerShell Profile 并添加简短指令配置" -ForegroundColor Green
+                        }
+                        
+                        Write-Host "提示：重新打开 PowerShell 后生效" -ForegroundColor Cyan
+                    }
+                }
+                "5" {
+                    # 返回主菜单
+                    continue
+                }
+                default {
+                    Write-Host "无效选项" -ForegroundColor Red
+                }
+            }
+            continue
+        }
+        "8" {
             Write-Host "退出脚本..." -ForegroundColor Green
             Exit
         }
@@ -989,6 +1211,56 @@ Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory "$hot
 "@
     $switchToRouterQwen | Set-Content -Path "$switchScriptsPath\switch_to_router_qwen.ps1" -Encoding UTF8
     Write-Host "- switch_to_router_qwen.ps1 已生成" -ForegroundColor Green
+
+    # 询问是否添加简短指令
+    Write-Host ""
+    Write-Host "简短指令可以让你在 PowerShell 中快速执行常用命令：" -ForegroundColor Cyan
+    Write-Host "  goa  -> 切换到 AIClient 模式"
+    Write-Host "  gok  -> 切换到 Router Kiro 链式模式"
+    Write-Host "  goq  -> 切换到 Router Qwen 模式"
+    Write-Host "  aic  -> 启动 AIClient-2-API 服务"
+    $addAliases = Read-Host "是否添加简短指令到 PowerShell? (y/n, 默认 y)"
+    if (-not $addAliases) { $addAliases = "y" }
+    
+    if ($addAliases -eq "y") {
+        # 生成简短指令配置
+        Write-Host "生成简短指令配置..." -ForegroundColor Cyan
+        $aliasScriptPath = "$switchScriptsPath\aliases.ps1"
+        $defaultAliases = @"
+# Claude Code 部署工具 - 简短指令配置
+# 自动生成
+
+function goa { & "$switchScriptsPath\switch_to_aiclient.ps1" }
+function gok { & "$switchScriptsPath\switch_to_router_kiro.ps1" }
+function goq { & "$switchScriptsPath\switch_to_router_qwen.ps1" }
+function aic { Push-Location "$hotyiDevPath\AIClient-2-API"; node src/services/api-server.js; Pop-Location }
+"@
+        $defaultAliases | Set-Content $aliasScriptPath -Encoding UTF8
+        Write-Host "- aliases.ps1 已生成" -ForegroundColor Green
+
+        # 配置 PowerShell Profile 引用简短指令
+        $profilePath = $PROFILE
+        $profileDir = Split-Path $profilePath -Parent
+        if (-not (Test-Path $profileDir)) {
+            New-Item -Path $profileDir -ItemType Directory -Force | Out-Null
+        }
+        
+        if (Test-Path $profilePath) {
+            $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+            if ($profileContent -notmatch [regex]::Escape($aliasScriptPath)) {
+                Add-Content $profilePath "`n# Claude Code 部署工具简短指令`n. `"$aliasScriptPath`"" -Encoding UTF8
+                Write-Host "- 已将简短指令添加到 PowerShell Profile" -ForegroundColor Green
+            } else {
+                Write-Host "- PowerShell Profile 已包含简短指令引用" -ForegroundColor Yellow
+            }
+        } else {
+            "# PowerShell Profile`n# Claude Code 部署工具简短指令`n. `"$aliasScriptPath`"" | Set-Content $profilePath -Encoding UTF8
+            Write-Host "- 已创建 PowerShell Profile 并添加简短指令" -ForegroundColor Green
+        }
+        Write-Host "  提示：重新打开 PowerShell 后生效" -ForegroundColor Cyan
+    } else {
+        Write-Host "跳过简短指令配置，可稍后通过菜单选项 7 添加" -ForegroundColor Yellow
+    }
 
     # 配置 Kiro token
     Write-Host ""

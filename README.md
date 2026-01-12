@@ -65,7 +65,8 @@
 4. Router Qwen 模式
 5. Kiro 续杯
 6. 清理项目配置
-7. 退出
+7. 管理简短指令
+8. 退出
 ```
 
 ### 首次使用建议
@@ -100,8 +101,30 @@
 └── Scripts\                 # 模式切换脚本
     ├── switch_to_aiclient.ps1
     ├── switch_to_router_kiro.ps1
-    └── switch_to_router_qwen.ps1
+    ├── switch_to_router_qwen.ps1
+    └── aliases.ps1          # 简短指令配置
 ```
+
+## 简短指令
+
+安装完成后，会自动配置以下简短指令到 PowerShell：
+
+| 指令 | 功能 |
+|------|------|
+| `goa` | 切换到 AIClient 模式 |
+| `gok` | 切换到 Router Kiro 链式模式 |
+| `goq` | 切换到 Router Qwen 模式 |
+| `aic` | 启动 AIClient-2-API 服务 |
+
+### 管理简短指令
+
+通过主菜单选项 7 可以：
+- 添加自定义简短指令
+- 删除已有简短指令
+- 查看所有简短指令
+- 重置为默认简短指令
+
+简短指令配置保存在 `{安装目录}\Scripts\aliases.ps1`，并自动引用到 PowerShell Profile。
 
 ## 手动启动 AIClient-2-API
 
