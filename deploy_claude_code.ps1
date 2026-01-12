@@ -296,6 +296,33 @@ while ($true) {
             Write-Host "简短指令可以让你在 PowerShell 中快速执行常用命令"
             Write-Host ""
             
+            # 确保 hotyiDevPath 已设置
+            if (-not $hotyiDevPath) {
+                # 重新检测安装路径
+                foreach ($drive in $possibleDrives) {
+                    $testPath = "$drive" + ":\hotyi-dev"
+                    if (Test-Path "$testPath\AIClient-2-API") {
+                        $hotyiDevPath = $testPath
+                        break
+                    }
+                }
+                
+                if (-not $hotyiDevPath) {
+                    Write-Host "未检测到安装目录，请输入安装盘符 (如: F)" -ForegroundColor Yellow
+                    $driveLetter = Read-Host "盘符"
+                    if ($driveLetter) {
+                        $hotyiDevPath = "$driveLetter" + ":\hotyi-dev"
+                        if (-not (Test-Path $hotyiDevPath)) {
+                            Write-Host "路径 $hotyiDevPath 不存在，请先运行安装模式" -ForegroundColor Red
+                            continue
+                        }
+                    } else {
+                        Write-Host "未输入盘符，返回主菜单" -ForegroundColor Red
+                        continue
+                    }
+                }
+            }
+            
             # 检查当前已配置的简短指令
             $aliasScriptPath = "$hotyiDevPath\Scripts\aliases.ps1"
             $profilePath = $PROFILE
@@ -304,10 +331,10 @@ while ($true) {
             if (Test-Path $aliasScriptPath) {
                 Write-Host "当前已配置的简短指令：" -ForegroundColor Green
                 Get-Content $aliasScriptPath | Where-Object { $_ -match "^function\s+(\w+)" } | ForEach-Object {
-                    if ($_ -match "function\s+(\w+)\s*\{.*`"(.+)`"") {
-                        Write-Host "  $($Matches[1]) -> $($Matches[2])" -ForegroundColor White
-                    } elseif ($_ -match "function\s+(\w+)") {
-                        Write-Host "  $($Matches[1])" -ForegroundColor White
+                    if ($_ -match "function\s+(\w+)\s*\{(.+)\}") {
+                        $funcName = $Matches[1]
+                        $funcBody = $Matches[2].Trim()
+                        Write-Host "  $funcName -> $funcBody" -ForegroundColor White
                     }
                 }
             } else {
@@ -328,26 +355,62 @@ while ($true) {
                     # 添加简短指令
                     Write-Host ""
                     Write-Host "添加新的简短指令" -ForegroundColor Cyan
-                    $aliasName = Read-Host "请输入简短指令名称 (如: goa)"
-                    if (-not $aliasName) {
-                        Write-Host "指令名称不能为空" -ForegroundColor Red
-                        continue
+                    Write-Host ""
+                    Write-Host "预设指令模板：" -ForegroundColor Yellow
+                    Write-Host "  1. 启动 AIClient-2-API 服务"
+                    Write-Host "  2. 切换到 AIClient 模式"
+                    Write-Host "  3. 切换到 Router Kiro 模式"
+                    Write-Host "  4. 切换到 Router Qwen 模式"
+                    Write-Host "  5. 自定义命令"
+                    $templateChoice = Read-Host "请选择模板 (1-5)"
+                    
+                    switch ($templateChoice) {
+                        "1" {
+                            $defaultName = "aic"
+                            $aliasCommand = "node `"$hotyiDevPath\AIClient-2-API\src\services\api-server.js`""
+                            $description = "启动 AIClient-2-API 服务"
+                        }
+                        "2" {
+                            $defaultName = "goa"
+                            $aliasCommand = "& `"$hotyiDevPath\Scripts\switch_to_aiclient.ps1`""
+                            $description = "切换到 AIClient 模式"
+                        }
+                        "3" {
+                            $defaultName = "gok"
+                            $aliasCommand = "& `"$hotyiDevPath\Scripts\switch_to_router_kiro.ps1`""
+                            $description = "切换到 Router Kiro 模式"
+                        }
+                        "4" {
+                            $defaultName = "goq"
+                            $aliasCommand = "& `"$hotyiDevPath\Scripts\switch_to_router_qwen.ps1`""
+                            $description = "切换到 Router Qwen 模式"
+                        }
+                        "5" {
+                            $defaultName = ""
+                            $aliasCommand = ""
+                            $description = "自定义"
+                        }
+                        default {
+                            Write-Host "无效选项" -ForegroundColor Red
+                            continue
+                        }
                     }
                     
-                    Write-Host "请选择指令类型：" -ForegroundColor Cyan
-                    Write-Host "1. 执行脚本文件"
-                    Write-Host "2. 执行自定义命令"
-                    $cmdType = Read-Host "请输入选项 (1-2)"
-                    
-                    if ($cmdType -eq "1") {
-                        Write-Host "可用的脚本文件：" -ForegroundColor Yellow
-                        Get-ChildItem "$hotyiDevPath\Scripts\*.ps1" -ErrorAction SilentlyContinue | ForEach-Object {
-                            Write-Host "  - $($_.Name)" -ForegroundColor White
-                        }
-                        $scriptName = Read-Host "请输入脚本文件名 (如: switch_to_aiclient.ps1)"
-                        $aliasCommand = "& `"$hotyiDevPath\Scripts\$scriptName`""
+                    if ($defaultName) {
+                        $aliasName = Read-Host "请输入简短指令名称 (默认: $defaultName)"
+                        if (-not $aliasName) { $aliasName = $defaultName }
+                        Write-Host "命令: $aliasCommand" -ForegroundColor Gray
                     } else {
+                        $aliasName = Read-Host "请输入简短指令名称"
+                        if (-not $aliasName) {
+                            Write-Host "指令名称不能为空" -ForegroundColor Red
+                            continue
+                        }
                         $aliasCommand = Read-Host "请输入要执行的命令"
+                        if (-not $aliasCommand) {
+                            Write-Host "命令不能为空" -ForegroundColor Red
+                            continue
+                        }
                     }
                     
                     # 确保 Scripts 目录存在
@@ -365,17 +428,19 @@ while ($true) {
                             Write-Host "指令 '$aliasName' 已存在，是否覆盖? (y/n)" -ForegroundColor Yellow
                             $overwrite = Read-Host
                             if ($overwrite -eq "y") {
-                                $existingContent = $existingContent -replace "function\s+$aliasName\s*\{[^}]+\}\s*", ""
-                                $existingContent + "`n$newFunction" | Set-Content $aliasScriptPath -Encoding UTF8
+                                $existingContent = $existingContent -replace "function\s+$aliasName\s*\{[^}]+\}\s*`n?", ""
+                                ($existingContent.TrimEnd() + "`n$newFunction") | Set-Content $aliasScriptPath -Encoding UTF8
                                 Write-Host "指令 '$aliasName' 已更新" -ForegroundColor Green
+                            } else {
+                                continue
                             }
                         } else {
-                            Add-Content $aliasScriptPath "`n$newFunction" -Encoding UTF8
+                            Add-Content $aliasScriptPath "$newFunction" -Encoding UTF8
                             Write-Host "指令 '$aliasName' 已添加" -ForegroundColor Green
                         }
                     } else {
                         # 创建新的 aliases.ps1
-                        $aliasHeader = "# Claude Code 部署工具 - 简短指令配置`n# 自动生成，请勿手动编辑`n"
+                        $aliasHeader = "# Claude Code 部署工具 - 简短指令配置`n# 自动生成`n`n"
                         "$aliasHeader$newFunction" | Set-Content $aliasScriptPath -Encoding UTF8
                         Write-Host "指令 '$aliasName' 已添加" -ForegroundColor Green
                     }
@@ -384,17 +449,19 @@ while ($true) {
                     if (Test-Path $profilePath) {
                         $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
                         if ($profileContent -notmatch [regex]::Escape($aliasScriptPath)) {
-                            Add-Content $profilePath "`n. `"$aliasScriptPath`"" -Encoding UTF8
+                            Add-Content $profilePath "`n# Claude Code 部署工具简短指令`n. `"$aliasScriptPath`"" -Encoding UTF8
                             Write-Host "已将简短指令配置添加到 PowerShell Profile" -ForegroundColor Green
                         }
                     } else {
                         # 创建 Profile
                         New-Item -Path (Split-Path $profilePath -Parent) -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
-                        ". `"$aliasScriptPath`"" | Set-Content $profilePath -Encoding UTF8
+                        "# PowerShell Profile`n# Claude Code 部署工具简短指令`n. `"$aliasScriptPath`"" | Set-Content $profilePath -Encoding UTF8
                         Write-Host "已创建 PowerShell Profile 并添加简短指令配置" -ForegroundColor Green
                     }
                     
-                    Write-Host "提示：重新打开 PowerShell 后生效，或执行: . `"$aliasScriptPath`"" -ForegroundColor Cyan
+                    Write-Host ""
+                    Write-Host "提示：重新打开 PowerShell 后生效" -ForegroundColor Cyan
+                    Write-Host "或执行以下命令立即生效: . `"$aliasScriptPath`"" -ForegroundColor Cyan
                 }
                 "2" {
                     # 删除简短指令
@@ -417,7 +484,7 @@ while ($true) {
                     if ($aliases -contains $delAlias) {
                         $content = Get-Content $aliasScriptPath -Raw
                         $content = $content -replace "function\s+$delAlias\s*\{[^}]+\}\s*`n?", ""
-                        $content | Set-Content $aliasScriptPath -Encoding UTF8
+                        $content.TrimEnd() | Set-Content $aliasScriptPath -Encoding UTF8
                         Write-Host "指令 '$delAlias' 已删除" -ForegroundColor Green
                         Write-Host "提示：重新打开 PowerShell 后生效" -ForegroundColor Cyan
                     } else {
@@ -457,7 +524,7 @@ while ($true) {
 function goa { & "$hotyiDevPath\Scripts\switch_to_aiclient.ps1" }
 function gok { & "$hotyiDevPath\Scripts\switch_to_router_kiro.ps1" }
 function goq { & "$hotyiDevPath\Scripts\switch_to_router_qwen.ps1" }
-function aic { Push-Location "$hotyiDevPath\AIClient-2-API"; node src/services/api-server.js; Pop-Location }
+function aic { node "$hotyiDevPath\AIClient-2-API\src\services\api-server.js" }
 "@
                         $defaultAliases | Set-Content $aliasScriptPath -Encoding UTF8
                         Write-Host "简短指令已重置为默认值" -ForegroundColor Green
@@ -466,12 +533,12 @@ function aic { Push-Location "$hotyiDevPath\AIClient-2-API"; node src/services/a
                         if (Test-Path $profilePath) {
                             $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
                             if ($profileContent -notmatch [regex]::Escape($aliasScriptPath)) {
-                                Add-Content $profilePath "`n. `"$aliasScriptPath`"" -Encoding UTF8
+                                Add-Content $profilePath "`n# Claude Code 部署工具简短指令`n. `"$aliasScriptPath`"" -Encoding UTF8
                                 Write-Host "已将简短指令配置添加到 PowerShell Profile" -ForegroundColor Green
                             }
                         } else {
                             New-Item -Path (Split-Path $profilePath -Parent) -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
-                            ". `"$aliasScriptPath`"" | Set-Content $profilePath -Encoding UTF8
+                            "# PowerShell Profile`n# Claude Code 部署工具简短指令`n. `"$aliasScriptPath`"" | Set-Content $profilePath -Encoding UTF8
                             Write-Host "已创建 PowerShell Profile 并添加简短指令配置" -ForegroundColor Green
                         }
                         
@@ -1233,7 +1300,7 @@ Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory "$hot
 function goa { & "$switchScriptsPath\switch_to_aiclient.ps1" }
 function gok { & "$switchScriptsPath\switch_to_router_kiro.ps1" }
 function goq { & "$switchScriptsPath\switch_to_router_qwen.ps1" }
-function aic { Push-Location "$hotyiDevPath\AIClient-2-API"; node src/services/api-server.js; Pop-Location }
+function aic { node "$hotyiDevPath\AIClient-2-API\src\services\api-server.js" }
 "@
         $defaultAliases | Set-Content $aliasScriptPath -Encoding UTF8
         Write-Host "- aliases.ps1 已生成" -ForegroundColor Green
