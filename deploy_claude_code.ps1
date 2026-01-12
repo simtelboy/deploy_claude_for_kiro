@@ -367,7 +367,7 @@ while ($true) {
                     switch ($templateChoice) {
                         "1" {
                             $defaultName = "aic"
-                            $aliasCommand = "node `"$hotyiDevPath\AIClient-2-API\src\services\api-server.js`""
+                            $aliasCommand = "Push-Location `"$hotyiDevPath\AIClient-2-API`"; node src/services/api-server.js; Pop-Location"
                             $description = "启动 AIClient-2-API 服务"
                         }
                         "2" {
@@ -524,7 +524,7 @@ while ($true) {
 function goa { & "$hotyiDevPath\Scripts\switch_to_aiclient.ps1" }
 function gok { & "$hotyiDevPath\Scripts\switch_to_router_kiro.ps1" }
 function goq { & "$hotyiDevPath\Scripts\switch_to_router_qwen.ps1" }
-function aic { node "$hotyiDevPath\AIClient-2-API\src\services\api-server.js" }
+function aic { Push-Location "$hotyiDevPath\AIClient-2-API"; node src/services/api-server.js; Pop-Location }
 "@
                         $defaultAliases | Set-Content $aliasScriptPath -Encoding UTF8
                         Write-Host "简短指令已重置为默认值" -ForegroundColor Green
@@ -1300,7 +1300,7 @@ Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory "$hot
 function goa { & "$switchScriptsPath\switch_to_aiclient.ps1" }
 function gok { & "$switchScriptsPath\switch_to_router_kiro.ps1" }
 function goq { & "$switchScriptsPath\switch_to_router_qwen.ps1" }
-function aic { node "$hotyiDevPath\AIClient-2-API\src\services\api-server.js" }
+function aic { Push-Location "$hotyiDevPath\AIClient-2-API"; node src/services/api-server.js; Pop-Location }
 "@
         $defaultAliases | Set-Content $aliasScriptPath -Encoding UTF8
         Write-Host "- aliases.ps1 已生成" -ForegroundColor Green
