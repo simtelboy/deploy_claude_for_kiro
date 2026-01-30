@@ -962,9 +962,10 @@ if ($installChoice -eq "y") {
     New-Item -Path (Split-Path $claudeSettingsPath -Parent) -ItemType Directory -Force
     $claudeSettings = @{
         api = @{
-            baseUrl = "http://127.0.0.1:$aiclientPort"
+            baseUrl = "http://127.0.0.1:$aiclientPort/v1"
             apiKey = $apiKey
         }
+        model = "claude-sonnet-4-5"
         mcp = @{
             enabled = $true
             defaultServer = "ai-client-mcp"
@@ -972,10 +973,10 @@ if ($installChoice -eq "y") {
         mcpServers = @{
             "ai-client-mcp" = @{
                 transport = "http"
-                url = "http://127.0.0.1:$aiclientPort/claude-kiro-oauth"
+                url = "http://127.0.0.1:$aiclientPort/claude-kiro-oauth/v1/messages"
                 env = @{
                     ANTHROPIC_API_KEY = $apiKey
-                    ANTHROPIC_MODEL = "claude-sonnet-4-5-20251001"
+                    ANTHROPIC_MODEL = "claude-sonnet-4-5"
                 }
             }
             "router-mcp" = @{
@@ -989,7 +990,7 @@ if ($installChoice -eq "y") {
         }
     }
     $claudeSettings | ConvertTo-Json -Depth 10 | Set-Content $claudeSettingsPath -Encoding UTF8
-    Write-Host "- Claude settings.json 已生成" -ForegroundColor Green
+    Write-Host "- Claude settings.json 已生成 (使用 claude-sonnet-4-5 模型)" -ForegroundColor Green
 
     # Router config.json
     $routerConfigPath = "$userFolder\.claude-code-router\config.json"
