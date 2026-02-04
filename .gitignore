@@ -1,0 +1,24 @@
+# Claude Code 配置文件
+.claude/
+
+# 备份文件
+backup/
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.temp
+
+# Windows 系统文件
+Thumbs.db
+Desktop.ini
+
+# PowerShell 执行策略文件
+*.ps1xml
+
+# 用户特定配置
+config.json
+settings.json
+*-auth-token.json
