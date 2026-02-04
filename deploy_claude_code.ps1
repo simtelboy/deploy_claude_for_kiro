@@ -615,9 +615,9 @@ if ($missingDependencies.Count -gt 0) {
             Exit
         }
         if ($missingDependencies -contains "Node.js") {
-            Write-Host "安装 Node.js (最新 LTS 版本)..."
-            # 安装最新 LTS 版本的 Node.js
-            winget install OpenJS.NodeJS --accept-package-agreements --accept-source-agreements --scope user
+            Write-Host "安装 Node.js v22.11.0..."
+            # 安装 Node.js v22.11.0 (兼容 openclaw)
+            winget install OpenJS.NodeJS --version 22.11.0 --accept-package-agreements --accept-source-agreements --scope user
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "Winget 安装失败，尝试从官网下载..." -ForegroundColor Yellow
                 # 使用最新 LTS 版本
