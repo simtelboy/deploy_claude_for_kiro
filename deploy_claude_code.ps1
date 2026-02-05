@@ -55,14 +55,37 @@ Write-Host "- 自动配置 JSON 文件和切换脚本"
 Write-Host ""
 
 # 主菜单
-# 尝试自动检测已安装的路径
-$possibleDrives = @("F", "C", "D", "E")
+# 注册表路径配置
+$registryPath = "HKCU:\Software\ClaudeCodeDeploy"
+$registryKey = "InstallPath"
+
+# 尝试从注册表读取已保存的路径
 $hotyiDevPath = $null
-foreach ($drive in $possibleDrives) {
-    $testPath = "$drive" + ":\hotyi-dev"
-    if (Test-Path "$testPath\Scripts\switch_to_aiclient.ps1") {
-        $hotyiDevPath = $testPath
-        break
+try {
+    if (Test-Path $registryPath) {
+        $savedPath = Get-ItemProperty -Path $registryPath -Name $registryKey -ErrorAction SilentlyContinue
+        if ($savedPath -and $savedPath.$registryKey) {
+            $testPath = $savedPath.$registryKey
+            if (Test-Path "$testPath\Scripts\switch_to_aiclient.ps1") {
+                $hotyiDevPath = $testPath
+                Write-Host "从注册表读取到安装路径: $hotyiDevPath" -ForegroundColor Green
+            }
+        }
+    }
+} catch {
+    Write-Host "读取注册表失败，将尝试自动检测" -ForegroundColor Yellow
+}
+
+# 如果注册表中没有找到，尝试自动检测已安装的路径
+if (-not $hotyiDevPath) {
+    $possibleDrives = @("F", "C", "D", "E")
+    foreach ($drive in $possibleDrives) {
+        $testPath = "$drive" + ":\hotyi-dev"
+        if (Test-Path "$testPath\Scripts\switch_to_aiclient.ps1") {
+            $hotyiDevPath = $testPath
+            Write-Host "自动检测到安装路径: $hotyiDevPath" -ForegroundColor Green
+            break
+        }
     }
 }
 
@@ -298,15 +321,34 @@ while ($true) {
             
             # 确保 hotyiDevPath 已设置
             if (-not $hotyiDevPath) {
-                # 重新检测安装路径
-                foreach ($drive in $possibleDrives) {
-                    $testPath = "$drive" + ":\hotyi-dev"
-                    if (Test-Path "$testPath\AIClient-2-API") {
-                        $hotyiDevPath = $testPath
-                        break
+                # 先尝试从注册表读取
+                try {
+                    if (Test-Path $registryPath) {
+                        $savedPath = Get-ItemProperty -Path $registryPath -Name $registryKey -ErrorAction SilentlyContinue
+                        if ($savedPath -and $savedPath.$registryKey) {
+                            $testPath = $savedPath.$registryKey
+                            if (Test-Path "$testPath\AIClient-2-API") {
+                                $hotyiDevPath = $testPath
+                                Write-Host "从注册表读取到安装路径: $hotyiDevPath" -ForegroundColor Green
+                            }
+                        }
+                    }
+                } catch {
+                    Write-Host "读取注册表失败" -ForegroundColor Yellow
+                }
+
+                # 如果注册表中没有，重新检测安装路径
+                if (-not $hotyiDevPath) {
+                    $possibleDrives = @("F", "C", "D", "E")
+                    foreach ($drive in $possibleDrives) {
+                        $testPath = "$drive" + ":\hotyi-dev"
+                        if (Test-Path "$testPath\AIClient-2-API") {
+                            $hotyiDevPath = $testPath
+                            break
+                        }
                     }
                 }
-                
+
                 if (-not $hotyiDevPath) {
                     Write-Host "未检测到安装目录，请输入安装盘符 (如: F)" -ForegroundColor Yellow
                     $driveLetter = Read-Host "盘符"
@@ -315,6 +357,16 @@ while ($true) {
                         if (-not (Test-Path $hotyiDevPath)) {
                             Write-Host "路径 $hotyiDevPath 不存在，请先运行安装模式" -ForegroundColor Red
                             continue
+                        }
+                        # 将路径写入注册表
+                        try {
+                            if (-not (Test-Path $registryPath)) {
+                                New-Item -Path $registryPath -Force | Out-Null
+                            }
+                            Set-ItemProperty -Path $registryPath -Name $registryKey -Value $hotyiDevPath
+                            Write-Host "安装路径已保存到注册表" -ForegroundColor Green
+                        } catch {
+                            Write-Host "写入注册表失败: $($_.Exception.Message)" -ForegroundColor Yellow
                         }
                     } else {
                         Write-Host "未输入盘符，返回主菜单" -ForegroundColor Red
@@ -794,6 +846,17 @@ Write-Host ""
 $driveLetter = Read-Host "请输入安装盘符 (e.g., F)"
 $hotyiDevPath = "$driveLetter" + ":\hotyi-dev"
 New-Item -Path $hotyiDevPath -ItemType Directory -Force
+
+# 将路径写入注册表
+try {
+    if (-not (Test-Path $registryPath)) {
+        New-Item -Path $registryPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $registryPath -Name $registryKey -Value $hotyiDevPath
+    Write-Host "安装路径已保存到注册表: $hotyiDevPath" -ForegroundColor Green
+} catch {
+    Write-Host "写入注册表失败: $($_.Exception.Message)" -ForegroundColor Yellow
+}
 
 # 检查 AIClient-2-API 是否需要安装
 if (-not (Test-Path "$hotyiDevPath\AIClient-2-API\package.json")) {
