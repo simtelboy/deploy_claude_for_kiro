@@ -249,6 +249,17 @@ while ($true) {
                         Remove-Item -Path "$hotyiDevPath" -Recurse -Force -ErrorAction SilentlyContinue
                     }
 
+                    # 删除注册表中保存的安装路径
+                    try {
+                        if (Test-Path $registryPath) {
+                            Write-Host "删除注册表中的安装路径配置..." -ForegroundColor Yellow
+                            Remove-Item -Path $registryPath -Recurse -Force -ErrorAction SilentlyContinue
+                            Write-Host "- 已删除注册表配置" -ForegroundColor Green
+                        }
+                    } catch {
+                        Write-Host "删除注册表配置失败: $($_.Exception.Message)" -ForegroundColor Yellow
+                    }
+
                     # 完整清理配置文件夹
                     $userFolder = $env:USERPROFILE
 
