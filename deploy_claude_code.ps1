@@ -48,7 +48,7 @@ Write-Host "         Claude Code 部署工具           " -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "欢迎使用 Claude Code 自动部署脚本！" -ForegroundColor Yellow
 Write-Host "功能："
-Write-Host "- 安装 VS Code（可选）、Claude Code、Claude Code Router、AIClient-2-API"
+Write-Host "- 安装 Claude Code、Claude Code Router、AIClient-2-API"
 Write-Host "- 直接安装 Kiro 并配置登录"
 Write-Host "- 支持三种模式：AIClient、Router Kiro 链式、Router Qwen"
 Write-Host "- 自动配置 JSON 文件和切换脚本"
@@ -193,7 +193,7 @@ while ($true) {
         "6" {
             # 清理项目配置和文件
             Write-Host "步骤: 清理项目配置和文件..." -ForegroundColor Red
-            $confirm = Read-Host "警告: 这将清理 hotyi-dev 文件夹和相关配置，但保留 Claude Code、VS Code 和 Kiro IDE，是否继续? (y/n)"
+            $confirm = Read-Host "警告: 这将清理 hotyi-dev 文件夹和相关配置，但保留 Claude Code 和 Kiro IDE，是否继续? (y/n)"
             if ($confirm -eq "y") {
                 # 询问是否也要卸载 Claude Code
                 Write-Host ""
@@ -309,9 +309,9 @@ while ($true) {
                     Write-Host "清理完成！" -ForegroundColor Green
                     if ($claudeCodeConfirm -eq "y") {
                         Write-Host "注意：已完全清理 Claude Code 和相关配置。" -ForegroundColor Cyan
-                        Write-Host "保留项：VS Code、Kiro IDE 和 Kiro 登录凭证，可继续使用。" -ForegroundColor Cyan
+                        Write-Host "保留项：Kiro IDE 和 Kiro 登录凭证，可继续使用。" -ForegroundColor Cyan
                     } else {
-                        Write-Host "注意：Claude Code、VS Code、Kiro IDE 和 Kiro 登录凭证已保留，可继续使用。" -ForegroundColor Cyan
+                        Write-Host "注意：Claude Code、Kiro IDE 和 Kiro 登录凭证已保留，可继续使用。" -ForegroundColor Cyan
                     }
                     Write-Host "如需重新安装，请重新运行此脚本的安装模式。" -ForegroundColor Yellow
                 } catch {
@@ -845,26 +845,6 @@ if (-not $routerInstalled) {
     Write-Host "- Claude Code Router: 已安装" -ForegroundColor Green
 }
 
-# 检查 VS Code 是否安装（使用更快的方法）
-$vscodeInstalled = $false
-$vscodePaths = @(
-    "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe",
-    "$env:PROGRAMFILES\Microsoft VS Code\Code.exe",
-    "$env:PROGRAMFILES(X86)\Microsoft VS Code\Code.exe"
-)
-foreach ($path in $vscodePaths) {
-    if (Test-Path $path) {
-        $vscodeInstalled = $true
-        break
-    }
-}
-
-if (-not $vscodeInstalled) {
-    $missingSoftware += "VS Code"
-    Write-Host "- VS Code: 未安装" -ForegroundColor Red
-} else {
-    Write-Host "- VS Code: 已安装" -ForegroundColor Green
-}
 
 # 询问安装盘符（无论是否缺少软件都询问）
 Write-Host ""
@@ -904,15 +884,6 @@ if ($installChoice -eq "y") {
     # 安装缺少的软件
     if ($missingSoftware.Count -gt 0) {
         Write-Host "开始安装缺少的软件..." -ForegroundColor Cyan
-
-        # 安装 VS Code（可选）
-        if ($missingSoftware -contains "VS Code") {
-            $installVSCode = Read-Host "是否安装 VS Code? (y/n)"
-            if ($installVSCode -eq "y") {
-                Write-Host "安装 VS Code..."
-                winget install Microsoft.VisualStudioCode --accept-package-agreements --accept-source-agreements --scope user
-            }
-        }
 
         # 安装 Claude Code
         if ($missingSoftware -contains "Claude Code") {
