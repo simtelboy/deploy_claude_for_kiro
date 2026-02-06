@@ -845,7 +845,21 @@ if (-not $routerInstalled) {
     Write-Host "- Claude Code Router: 已安装" -ForegroundColor Green
 }
 
-if (-not (winget list | Select-String "Visual Studio Code")) {
+# 检查 VS Code 是否安装（使用更快的方法）
+$vscodeInstalled = $false
+$vscodePaths = @(
+    "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe",
+    "$env:PROGRAMFILES\Microsoft VS Code\Code.exe",
+    "$env:PROGRAMFILES(X86)\Microsoft VS Code\Code.exe"
+)
+foreach ($path in $vscodePaths) {
+    if (Test-Path $path) {
+        $vscodeInstalled = $true
+        break
+    }
+}
+
+if (-not $vscodeInstalled) {
     $missingSoftware += "VS Code"
     Write-Host "- VS Code: 未安装" -ForegroundColor Red
 } else {
