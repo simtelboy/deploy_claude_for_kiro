@@ -696,7 +696,7 @@ if ($missingDependencies.Count -gt 0) {
         }
         if ($missingDependencies -contains "Git") {
             Write-Host "安装 Git..."
-            winget install Git.Git --accept-package-agreements --accept-source-agreements --scope user
+            winget install Git.Git --source winget --accept-package-agreements --accept-source-agreements --scope user
             Refresh-Environment
         }
 
@@ -797,26 +797,34 @@ if (-not $kiroInstalled) {
         }
 
         Write-Host ""
-        Write-Host "正在等待登录完成..." -ForegroundColor Cyan
-        Write-Host "提示：按 Ctrl+C 可以中断等待" -ForegroundColor Gray
+        $waitForLogin = Read-Host "是否等待登录完成后继续? (y=等待登录, n=跳过登录继续安装, 默认 y)"
+        if (-not $waitForLogin) { $waitForLogin = "y" }
 
-        $waitTime = 0
-        # 循环检查直到登录完成
-        while (-not (Test-Path $kiroTokenPath)) {
-            Start-Sleep -Seconds 2
-            $waitTime += 2
-            Write-Host "." -NoNewline -ForegroundColor Yellow
+        if ($waitForLogin -eq "y") {
+            Write-Host "正在等待登录完成..." -ForegroundColor Cyan
+            Write-Host "提示：按 Ctrl+C 可以中断等待" -ForegroundColor Gray
 
-            # 每30秒提示一次
-            if ($waitTime % 30 -eq 0) {
-                Write-Host ""
-                Write-Host "仍在等待登录... (已等待 $waitTime 秒)" -ForegroundColor Gray
-                Write-Host "请确保已在 Kiro IDE 中完成登录操作" -ForegroundColor Cyan
+            $waitTime = 0
+            # 循环检查直到登录完成
+            while (-not (Test-Path $kiroTokenPath)) {
+                Start-Sleep -Seconds 2
+                $waitTime += 2
+                Write-Host "." -NoNewline -ForegroundColor Yellow
+
+                # 每30秒提示一次
+                if ($waitTime % 30 -eq 0) {
+                    Write-Host ""
+                    Write-Host "仍在等待登录... (已等待 $waitTime 秒)" -ForegroundColor Gray
+                    Write-Host "请确保已在 Kiro IDE 中完成登录操作" -ForegroundColor Cyan
+                }
             }
-        }
 
-        Write-Host ""
-        Write-Host "检测到登录成功！" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "检测到登录成功！" -ForegroundColor Green
+        } else {
+            Write-Host "跳过登录，继续安装流程..." -ForegroundColor Yellow
+            Write-Host "提示：你可以稍后启动 Kiro IDE 并登录账号" -ForegroundColor Cyan
+        }
     } else {
         Write-Host "检测到 Kiro IDE 已安装并已登录" -ForegroundColor Green
     }
